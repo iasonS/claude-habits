@@ -1,5 +1,10 @@
 GO_IMAGE := golang:1.26
-GO := docker run --rm -v $(CURDIR):/src -w /src -v claude-habits-gocache:/go -e GOCACHE=/go/cache $(GO_IMAGE)
+# Go runs as the calling user, not as root: git refuses a repository owned by someone else
+# (so `go build` could not read the VCS status on Linux), and bin/ would come out owned by root.
+# The cache folder is per user, because a cache that root made earlier cannot be written to.
+UID := $(shell id -u)
+GID := $(shell id -g)
+GO := docker run --rm --user $(UID):$(GID) -e HOME=/tmp -v $(CURDIR):/src -w /src -v claude-habits-gocache:/go -e GOCACHE=/go/cache-$(UID) $(GO_IMAGE)
 
 # The binary is built for this machine, so it can read the transcripts directly.
 GOOS ?= $(shell uname -s | tr A-Z a-z)
